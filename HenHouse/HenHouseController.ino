@@ -25,14 +25,20 @@ unsigned long holdTimeStart = 0;
 bool isHolding = false;
 bool isOpening = true;
 
-short jsXstate = 0; //Joy stick X state
-short jsYstate = 0; //Joy stick X state
+short jsXstate = 0; // Joy stick X state
+short jsYstate = 0; // Joy stick Y state
 
 short menuPos = 0;
 
-//Allowed symbols LCD
-//abcdefghijklmnopqrstuvwxyz
-//.:,;-_^<>!\"'#$%&/()[]{}|@=-
+// Timers in minutes
+unsigned short lightOnTimer = 0;
+unsigned short lightOffTimer = 0;
+unsigned short pistonOpenTimer = 0;
+unsigned short pistonClosedTimer = 0;
+
+// Allowed symbols LCD
+// abcdefghijklmnopqrstuvwxyz
+// .:,;-_^<>!\"'#$%&/()[]{}|@=-
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
 
@@ -56,8 +62,10 @@ LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
 const short menuSize = sizeof(menuItems) / 16;
 
-/*void setup()
+/*********************************************************/
+void setup()
 {
+    Serial.begin(115200);
     pinMode(pwmPin, OUTPUT);
     pinMode(ledPin, OUTPUT);
 
@@ -65,12 +73,7 @@ const short menuSize = sizeof(menuItems) / 16;
     pinMode(closePin, INPUT);
     digitalWrite(openPin, HIGH);
     digitalWrite(closePin, LOW);
-}*/
-
-/*********************************************************/
-void setup()
-{
-    Serial.begin(115200);
+    
     lcd.begin(16, 2);
 
     lcd.createChar(0, upArrow);
@@ -107,9 +110,9 @@ void mainMenu()
             controlPiston();
         } else if (pos == 1) {
             setPistonTimer();
-        } else if (pos == 1) {
+        } else if (pos == 2) {
             controlLights();
-        } else if (pos == 1) {
+        } else if (pos == 3) {
             setLightTimer();
         }
         nPos = -1;
@@ -171,6 +174,25 @@ void controlPiston()
     }
 }
 
+void controlLights()
+{
+    lcd.clear();
+    lcd.setCursor(3, 0);
+    lcd.print("Light Mode");
+    lcd.setCursor(0, 1);
+    lcd.print("< Back");
+
+    while (true) {
+        time = millis();
+        jsXstate = analogRead(xPin) - 512;
+        jsYstate = analogRead(yPin) - 512;
+
+        if (jsYstate - Y_DEADZONE > 0) {
+            break;
+        }
+    }
+}
+
 void setPistonTimer()
 {
     lcd.clear();
@@ -182,16 +204,14 @@ void setPistonTimer()
         time = millis();
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
-
+        
         lcd.setCursor(0, 11);
-    }
-}
+        printTimeLCD(pistonOpenTimer);
+        lcd.setCursor(1, 11);
+        printTimeLCD(pistonClosedTimer);
 
-void controlLights()
-{
-    lcd.clear();
-    lcd.setCursor(3, 0);
-    lcd.print("Light Mode");
+        delay(100);
+    }
 }
 
 void setLightTimer()
@@ -201,13 +221,55 @@ void setLightTimer()
     lcd.print("On  time");
     lcd.setCursor(0, 1);
     lcd.print("Off time");
+    int yPos = 0;
+    int xPos = 0;
     while (true) {
         time = millis();
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
 
-        lcd.setCursor(0, 11);
+        lcd.setCursor(0, 9);
+        printTimeLCD(lightOnTimer);
+        lcd.setCursor(1, 9);
+        printTimeLCD(lightOffTimer);
+        
+        
+        if(yPos == 0) {
+            if (jsXstate - X_DEADZONE > 0) {
+                lightOnTimer += 10;
+            } else if (jsXstate + X_DEADZONE < 0) {
+                lightOnTimer -= 10;
+            } else if (jsYstate - Y_DEADZONE > 0) {
+                
+            } else if (jsYstate + Y_DEADZONE < 0) {
+                break;
+            }
+        }
+        else if(yPos == 1) {
+            if(xPos == 0) {
+                if (jsXstate - X_DEADZONE > 0) {
+                    lightOnTimer += 10;
+                } else if (jsXstate + X_DEADZONE < 0) {
+                    lightOnTimer -= 10;
+                }
+            } else if(xPos == 1) {
+                if (jsXstate - X_DEADZONE > 0) {
+                    lightOffTimer += 10;
+                } else if (jsXstate + X_DEADZONE < 0) {
+                    lightOffTimer -= 10;
+                }
+            } else if (jsYstate + Y_DEADZONE < 0) {
+                yPos = 0;
+            }
+        }
+        delay(100);
     }
+}
+
+void printTimeLCD(unsigned short time) {
+    lcd.print(time/60);
+    lcd.print(':');
+    lcd.print(time%60);
 }
 
 void movePiston(int state, bool setOpen)
