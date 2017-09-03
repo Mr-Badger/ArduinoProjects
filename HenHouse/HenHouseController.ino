@@ -17,6 +17,10 @@ const int Y_DEADZONE = 200;
 const int triggerTime = 1000;
 const int holdTime = 25000;
 
+// LCD constants
+const int SCREEN_ROWS = 2;
+const int SCREEN_COLUMS = 16;
+
 unsigned long time = 0;
 unsigned long timeStarted = 0;
 unsigned long timeHeld = 0;
@@ -28,13 +32,18 @@ bool isOpening = true;
 short jsXstate = 0; // Joy stick X state
 short jsYstate = 0; // Joy stick Y state
 
-short menuPos = 0;
+short mPos = 0;
 
 // Timers in minutes
-unsigned short lightOnTimer = 0;
-unsigned short lightOffTimer = 0;
-unsigned short pistonOpenTimer = 0;
-unsigned short pistonClosedTimer = 0;
+
+unsigned short lightState = 0;
+unsigned short lightOnTimer = 1080;
+unsigned short lightOffTimer = 600;
+
+bool pistonAutoOpen = false;
+bool pistonAutoClose = false;
+unsigned short pistonOpenTimer = 480;
+unsigned short pistonClosedTimer = 1260;
 
 // Allowed symbols LCD
 // abcdefghijklmnopqrstuvwxyz
@@ -50,6 +59,8 @@ const char menuItems[5][16] = {
     "---------------"
 };
 
+const short menuSize = sizeof(menuItems) / 16;
+
 /*typedef void (*vvFunction)();
 
 vvFunction table[] =  {
@@ -59,8 +70,6 @@ vvFunction table[] =  {
 
 // initialize the library with the numbers of the interface pins
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
-
-const short menuSize = sizeof(menuItems) / 16;
 
 /*********************************************************/
 void setup()
@@ -74,68 +83,64 @@ void setup()
     digitalWrite(openPin, HIGH);
     digitalWrite(closePin, LOW);
     
-    lcd.begin(16, 2);
+    lcd.begin(SCREEN_COLUMS, SCREEN_ROWS);
 
     lcd.createChar(0, upArrow);
     lcd.createChar(1, downArrow);
-
-    lcd.setCursor(0, 1);
-    lcd.print((char)1);
-    for (int y = 0; y < 2; y++) {
-        lcd.setCursor(1, y);
-        lcd.print(menuItems[y + menuPos]);
-    }
 }
-/*********************************************************/
 void loop()
 {
-    time = millis();
-    jsXstate = analogRead(xPin) - 512;
-    jsYstate = analogRead(yPin) - 512;
-
     mainMenu();
 }
 
 void mainMenu()
 {
-    short nPos = menuPos;
-    if (jsXstate - X_DEADZONE > 0 && nPos < 3) {
-        nPos++;
-    } else if (jsXstate + X_DEADZONE < 0 && nPos > 0) {
-        nPos--;
-    } else if (jsYstate - Y_DEADZONE > 0) {
-        //do nothing
-    } else if (jsYstate + Y_DEADZONE < 0) {
-        if (pos == 0) {
-            controlPiston();
-        } else if (pos == 1) {
-            setPistonTimer();
-        } else if (pos == 2) {
-            controlLights();
-        } else if (pos == 3) {
-            setLightTimer();
+    bool first = true;
+    while(true) {
+        time = millis();
+        jsXstate = analogRead(xPin) - 512;
+        jsYstate = analogRead(yPin) - 512;
+    
+        short newPos = mPos;
+        if (jsXstate - X_DEADZONE > 0 && newPos < 3) {
+            newPos++;
+        } else if (jsXstate + X_DEADZONE < 0 && newPos > 0) {
+            newPos--;
+        } else if (jsYstate - Y_DEADZONE > 0) {
+            //do nothing
+        } else if (jsYstate + Y_DEADZONE < 0) {
+            if (pos == 0) {
+                controlPiston();
+            } else if (pos == 1) {
+                setPistonTimer();
+            } else if (pos == 2) {
+                controlLights();
+            } else if (pos == 3) {
+                setLightTimer();
+            }
+            newPos = -1;
         }
-        nPos = -1;
-    }
-
-    //Update screen
-    if (menuPos != nPos) {
-        lcd.clear();
-        if (nPos == -1)
-            nPos = 0;
-        for (int y = 0; y < 2; y++) {
-            lcd.setCursor(1, y);
-            lcd.print(menuItems[y + nPos]);
+        
+        //Update screen
+        if (mPos != newPos || first) {
+            lcd.clear();
+            if (newPos == -1)
+            newPos = 0;
+            for (int y = 0; y < SCREEN_ROWS; y++) {
+                lcd.setCursor(1, y);
+                lcd.print(menuItems[y + newPos]);
+            }
+            lcd.setCursor(0, 0);
+            lcd.print(newPos != 0 ? (char)0 : ' ');
+            lcd.setCursor(0, SCREEN_ROWS - 1);
+            lcd.print(newPos != 3 ? (char)1 : ' ');
+            
+            mPos = newPos;
+            delay(150);
+            first = false;
         }
-        lcd.setCursor(0, 0);
-        lcd.print(nPos != 0 ? (char)0 : ' ');
-        lcd.setCursor(0, 1);
-        lcd.print(nPos != 3 ? (char)1 : ' ');
-
-        menuPos = nPos;
-        delay(150);
+        delay(100);
     }
-    delay(100);
 }
 
 void controlPiston()
@@ -214,33 +219,41 @@ void setPistonTimer()
     }
 }
 
+const char lightMenu[4][16] = {
+    " Mode ", //ON, OFF, AUTO
+    " On time ",
+    " Off time ",
+    " Back ",
+};
+
+int lightMenuSize = 4; 
+
+const char lightStates[3][4] {
+    "Auto",
+    "On",
+    "Off"
+};
+
 void setLightTimer()
 {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("On  time");
-    lcd.setCursor(0, 1);
-    lcd.print("Off time");
-    int yPos = 0;
-    int xPos = 0;
+    mPos = 0;
+    short yPos = 0;
+    bool first = true;
+
     while (true) {
         time = millis();
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
+           
+        short xPos = mPos;
 
-        lcd.setCursor(0, 9);
-        printTimeLCD(lightOnTimer);
-        lcd.setCursor(1, 9);
-        printTimeLCD(lightOffTimer);
-        
-        
         if(yPos == 0) {
-            if (jsXstate - X_DEADZONE > 0) {
-                lightOnTimer += 10;
-            } else if (jsXstate + X_DEADZONE < 0) {
-                lightOnTimer -= 10;
-            } else if (jsYstate - Y_DEADZONE > 0) {
-                
+            if (jsXstate - X_DEADZONE > 0 && xPos < lightMenuSize - 1) {
+                xPos++;
+            } else if (jsXstate + X_DEADZONE < 0 && xPos > 0) {
+                xPos--;
+            } if (jsYstate - Y_DEADZONE > 0) {
+                yPos = 1;
             } else if (jsYstate + Y_DEADZONE < 0) {
                 break;
             }
@@ -248,28 +261,74 @@ void setLightTimer()
         else if(yPos == 1) {
             if(xPos == 0) {
                 if (jsXstate - X_DEADZONE > 0) {
-                    lightOnTimer += 10;
+                    lightState = (lightState + 1) % 3;
                 } else if (jsXstate + X_DEADZONE < 0) {
-                    lightOnTimer -= 10;
+                    lightState = (lightState != 0 ? lightState - 1 : 3; 
                 }
             } else if(xPos == 1) {
                 if (jsXstate - X_DEADZONE > 0) {
-                    lightOffTimer += 10;
+                    if(lightOnTimer == 1430) {
+                        lightOnTimer = 0;
+                    } else {
+                        lightOnTimer += 10;
+                    }
                 } else if (jsXstate + X_DEADZONE < 0) {
-                    lightOffTimer -= 10;
+                    if(lightOnTimer == 0) {
+                        lightOnTimer = 1430;
+                    } else {
+                        lightOnTimer -= 10;
+                    }
+                }
+            } else if(xPos == 2) {
+                if (jsXstate - X_DEADZONE > 0) {
+                    if(lightOffTimer == 1430) {
+                        lightOffTimer = 0;
+                    } else {
+                        lightOffTimer += 10;
+                    }
+                } else if (jsXstate + X_DEADZONE < 0) {
+                    if(lightOffTimer == 0) {
+                        lightOffTimer = 1430;
+                    } else {
+                        lightOffTimer -= 10;
+                    }
                 }
             } else if (jsYstate + Y_DEADZONE < 0) {
                 yPos = 0;
             }
         }
-        delay(100);
+
+        lcd.clear();
+        for (int x = 0; x < SCREEN_ROWS; x++) {
+            lcd.setCursor(1, x);
+            lcd.print(lightMenu[x + xPos]);
+        }
+        if(0 <= xPos && xPos < 1) {
+            lcd.setCursor(xPos, 6);
+            lcd.print(lightStates[lightState]);
+        }
+        if(0 <= xPos && xPos < 2) {
+            lcd.setCursor(1 - xPos, 8);
+            printTimeLCD(lightOnTimer);
+        }
+        if(1 <= xPos && xPos < 3) {
+            lcd.setCursor(2 - xPos, 9);
+            printTimeLCD(lightOffTimer);
+        }
+        
+        lcd.setCursor(0, 0);
+        lcd.print(xPos != 0 ? (char)0 : ' ');
+        lcd.setCursor(0, SCREEN_ROWS - 1);
+        lcd.print(xPos != lightMenuSize - 1 ? (char)1 : ' ');
+        
+        delay(150);
     }
 }
 
 void printTimeLCD(unsigned short time) {
-    lcd.print(time/60);
+    lcd.print(time / 60);
     lcd.print(':');
-    lcd.print(time%60);
+    lcd.print(time % 60);
 }
 
 void movePiston(int state, bool setOpen)
