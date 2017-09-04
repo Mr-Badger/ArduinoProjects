@@ -53,9 +53,6 @@ bool pistonAutoClose = false;
 unsigned short pistonOpenTimer = 480;
 unsigned short pistonClosedTimer = 1260;
 
-// Allowed symbols LCD
-// abcdefghijklmnopqrstuvwxyz
-// .:,;-_^<>!\"'#$%&/()[]{}|@=-
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
 
@@ -296,13 +293,13 @@ void setLightTimer()
         } else if (yPos == 1) {
             if (xPos == 0) {
                 if (JSUp()) {
-                    lightState = (lightState + 1) % 3;
+                    lightState = (lightState + 1) % lightStatesSize;
                     updateScreen = true;
                 } else if (JSDown()) {
-                    lightState = (lightState + (lightStatesSize - 1)) % 3;
+                    lightState = (lightState + (lightStatesSize - 1)) % lightStatesSize;
                     updateScreen = true;
                 } else if (JSLeft()) {
-                    EEPROM[0] = lightState; 
+                    EEPROM.update(0, lightState); 
                     yPos = 0;
                     updateScreen = true;
                 }
@@ -314,8 +311,8 @@ void setLightTimer()
                     advanceTimer(&lightOnTimer, -TIMER_STEP);
                     updateScreen = true;
                 } else if (JSLeft()) {
-                    EEPROM[1] = lightOnTimer / 60;
-                    EEPROM[2] = lightOnTimer % 60;
+                    EEPROM.update(1, lightOnTimer / 60);
+                    EEPROM.update(2, lightOnTimer % 60);
                     yPos = 0;
                     updateScreen = true;
                 }
@@ -327,8 +324,8 @@ void setLightTimer()
                     advanceTimer(&lightOffTimer, -TIMER_STEP);
                     updateScreen = true;
                 } else if (JSLeft()) {
-                    EEPROM[3] = lightOffTimer / 60;
-                    EEPROM[4] = lightOffTimer % 60;
+                    EEPROM.update(3, lightOffTimer / 60);
+                    EEPROM.update(4, lightOffTimer % 60);
                     yPos = 0;
                     updateScreen = true;
                 }
