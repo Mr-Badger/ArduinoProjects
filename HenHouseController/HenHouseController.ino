@@ -56,33 +56,30 @@ unsigned short pistonClosedTimer = 1260;
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
 
-const char menuItems[4][16] {
+const char menuItems[][16] {
     "Piston manual",
     "Piston timer",
-    "Light timer",
-    "---------------"
+    "Light timer"
 };
 
-const short menuSize = sizeof(menuItems) / 16 - 1;
+const short menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
 
-const char lightMenu[5][16] {
+const char lightMenu[][16] {
     "Mode",
     "On time ",
     "Off time",
-    "Back",
-    "---------------"
+    "Back"
 };
 
-const short lightMenuSize = sizeof(lightMenu) / 16 - 1;
+const short lightMenuSize = sizeof(lightMenu)  / sizeof(lightMenu[0]);
 
-const char lightStates[3][5] {
+const char lightStates[][5] {
     "Auto",
     "On",
     "Off"
 };
 
-const int lightStatesSize = sizeof(lightStates) / 5; 
-
+const int lightStatesSize = sizeof(lightStates)  / sizeof(lightStates[0]);
 
 /*typedef void (*vvFunction)();
 
@@ -151,9 +148,11 @@ void mainMenu()
             
             if (newPos == -1)
                 newPos = 0;
-            for (int y = 0; y < SCREEN_ROWS; y++) {
-                lcd.setCursor(1, y);
-                lcd.print(menuItems[y + newPos]);
+            for (int i = 0; i < SCREEN_ROWS; i++) {
+                if(newPos + i < menuSize) {
+                    lcd.setCursor(1, i);
+                    lcd.print(menuItems[i + newPos]);
+                }
             }
 
             xPos = newPos;
@@ -244,8 +243,10 @@ void setLightTimer()
             lcd.print(xPos != lightMenuSize - 1 ? (char)1 : ' ');
             
             for (int x = 0; x < SCREEN_ROWS; x++) {
-                lcd.setCursor(1, x);
-                lcd.print(lightMenu[x + xPos]);
+                if(xPos + x < lightMenuSize) {
+                    lcd.setCursor(1, x);
+                    lcd.print(lightMenu[x + xPos]);
+                }
             }
             
             // Print current configuration
