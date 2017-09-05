@@ -7,6 +7,7 @@ const int xPin = 0;
 const int yPin = 1;
 
 const int lightSensorPin = 2;
+const int tempSensorPin = 3;
 
 // Output pins
 const int openPin = 5;
@@ -134,6 +135,19 @@ void mainMenu()
     bool first = true;
     while (true) {
         time = millis();
+        
+        int heatState = analogRead(tempSensorPin);
+        float voltage = heatState * 5.0;
+        voltage /= 1024.0; 
+        // print out the voltage
+        Serial.print(voltage); 
+        Serial.println(" volts");
+        float temperatureC = (voltage - 0.5) * 100; 
+        //converting from 10 mv per degree wit 500 mV offset
+        //to degrees ((voltage - 500mV) times 100)
+        Serial.print(temperatureC); 
+        Serial.println(" degrees C");
+        
         
         int lightState = analogRead(lightSensorPin);
         Serial.print("Light: ");
