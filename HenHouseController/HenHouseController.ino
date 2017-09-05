@@ -42,16 +42,17 @@ static bool JSDown()  { return jsXstate - X_DEADZONE > 0; }
 
 int xPos = 0;
 
-// Timers in minutes
-
-short lightState = EEPROM[0];
+// Stored values
+byte lightState = EEPROM[0];
 unsigned short lightOnTimer = EEPROM[1] * 60 + EEPROM[2];
 unsigned short lightOffTimer = EEPROM[3] * 60 + EEPROM[4];
 
-bool pistonAutoOpen = false;
-bool pistonAutoClose = false;
-unsigned short pistonOpenTimer = 480;
-unsigned short pistonClosedTimer = 1260;
+bool pistonAutoOpen = EEPROM[5];
+bool pistonAutoClose = EEPROM[6];
+unsigned short pistonOpenTimer =  EEPROM[7] * 60 + EEPROM[8];
+unsigned short pistonClosedTimer =  EEPROM[9] * 60 + EEPROM[10];
+
+
 
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
@@ -61,8 +62,16 @@ const char menuItems[][16] {
     "Piston timer",
     "Light timer"
 };
-
 const short menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
+
+const char pistonMenu[][16] {
+    "Auto open ",
+    "Auto close",
+    "Open ti ",
+    "Close ti",
+    "Back"
+};
+const short pistonMenuSize = sizeof(pistonMenu) / sizeof(pistonMenu[0]);
 
 const char lightMenu[][16] {
     "Mode",
@@ -70,7 +79,6 @@ const char lightMenu[][16] {
     "Off time",
     "Back"
 };
-
 const short lightMenuSize = sizeof(lightMenu)  / sizeof(lightMenu[0]);
 
 const char lightStates[][5] {
@@ -78,8 +86,13 @@ const char lightStates[][5] {
     "On",
     "Off"
 };
+const short lightStatesSize = sizeof(lightStates)  / sizeof(lightStates[0]);
 
-const int lightStatesSize = sizeof(lightStates)  / sizeof(lightStates[0]);
+const char onOffStates[][4] {
+    "On",
+    "Off"
+};
+
 
 /*typedef void (*vvFunction)();
 
@@ -95,6 +108,8 @@ LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 void setup()
 {
     Serial.begin(115200);
+    Serial.println(lightMenuSize);
+    Serial.println(menuSize);
     pinMode(pwmPin, OUTPUT);
     pinMode(ledPin, OUTPUT);
 
@@ -104,7 +119,6 @@ void setup()
     digitalWrite(closePin, LOW);
 
     lcd.begin(SCREEN_COLUMS, SCREEN_ROWS);
-
     lcd.createChar(0, upArrow);
     lcd.createChar(1, downArrow);
 }
@@ -200,25 +214,130 @@ void controlPiston()
 
 void setPistonTimer()
 {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Open  time");
-    lcd.setCursor(0, 1);
-    lcd.print("Close time");
+    short yPos = 0;
+    xPos = 0;
+    bool updateScreen = true;
+
     while (true) {
         time = millis();
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
 
-        lcd.setCursor(11, 0);
-        printTimeLCD(pistonOpenTimer);
-        lcd.setCursor(11, 1);
-        printTimeLCD(pistonClosedTimer);
+        if (updateScreen) {
+            lcd.clear();
+            
+            // Print menu arrows
+            lcd.setCursor(0, 0);
+            lcd.print(xPos != 0 ? (char)0 : ' ');
+            lcd.setCursor(0, SCREEN_ROWS - 1);
+            lcd.print(xPos != pistonMenuSize - 1 ? (char)1 : ' ');
+            
+            for (int x = 0; x < SCREEN_ROWS; x++) {
+                if(xPos + x < pistonMenuSize) {
+                    lcd.setCursor(1, x);
+                    lcd.print(pistonMenu[x + xPos]);
+                }
+            }
+            
+            // Print current configuration
+            if (0 <= xPos && xPos < 1) {
+                lcd.setCursor(12, xPos);
+                lcd.print(onOffStates[pistonAutoOpen]);
+            }
+            if (0 <= xPos && xPos < 2) {
+                lcd.setCursor(12, 1 - xPos);
+                lcd.print(onOffStates[pistonAutoClose]);
+            }
+            if (1 <= xPos && xPos < 3) {
+                lcd.setCursor(10, 2 - xPos);
+                printTimeLCD(pistonOpenTimer);
+            }
+            if (2 <= xPos && xPos < 4) {
+                lcd.setCursor(10, 3 - xPos);
+                printTimeLCD(pistonClosedTimer);
+            }
 
-        if (JSLeft()) {
-            break;
+            // Print blinking cursor when editing 
+            if(yPos == 1) {
+                lcd.setCursor(strlen(pistonMenu[xPos]) + 1, 0);
+                lcd.blink();
+            }  else {
+                lcd.noBlink();
+            }
+            
+            delay(150);
+            updateScreen = false;
         }
-        delay(100);
+
+        delay(150);
+        if (yPos == 0) {
+             if (xPos == 4 && (JSLeft() || JSRight())) {
+                xPos = 0;
+                break;
+            }
+            if (JSDown() && xPos < pistonMenuSize - 1) {
+                xPos++;
+                updateScreen = true;
+            } else if (JSUp() && xPos > 0) {
+                xPos--;
+                updateScreen = true;
+            } else if (JSRight()) {
+                yPos = 1;
+                updateScreen = true;
+            }
+        } else if (yPos == 1) {
+            if (xPos == 0) {
+                if (JSUp()) {
+                    pistonAutoOpen = !pistonAutoOpen;
+                    updateScreen = true;
+                } else if (JSDown()) {
+                    pistonAutoOpen = !pistonAutoOpen;
+                    updateScreen = true;
+                } else if (JSLeft()) {
+                    EEPROM.update(5, pistonAutoOpen); 
+                    yPos = 0;
+                    updateScreen = true;
+                }
+            } else if (xPos == 1) {
+                if (JSUp()) {
+                    pistonAutoClose = !pistonAutoClose;
+                    updateScreen = true;
+                } else if (JSDown()) {
+                    pistonAutoClose = !pistonAutoClose;
+                    updateScreen = true;
+                } else if (JSLeft()) {
+                    EEPROM.update(6, pistonAutoClose); 
+                    yPos = 0;
+                    updateScreen = true;
+                }
+            } else if (xPos == 2) {
+                if (JSUp()) {
+                    advanceTimer(&pistonOpenTimer, TIMER_STEP);
+                    updateScreen = true;
+                } else if (JSDown()) {
+                    advanceTimer(&pistonOpenTimer, -TIMER_STEP);
+                    updateScreen = true;
+                } else if (JSLeft()) {
+                    EEPROM.update(7, pistonOpenTimer / 60);
+                    EEPROM.update(8, pistonOpenTimer % 60);
+                    yPos = 0;
+                    updateScreen = true;
+                }
+            } else if (xPos == 3) {
+                if (JSUp()) {
+                    advanceTimer(&pistonClosedTimer, TIMER_STEP);
+                    updateScreen = true;
+                } else if (JSDown()) {
+                    advanceTimer(&pistonClosedTimer, -TIMER_STEP);
+                    updateScreen = true;
+                } else if (JSLeft()) {
+                    EEPROM.update(9, pistonClosedTimer / 60);
+                    EEPROM.update(10, pistonClosedTimer % 60);
+                    yPos = 0;
+                    updateScreen = true;
+                }
+            }
+        }
     }
 }
 
