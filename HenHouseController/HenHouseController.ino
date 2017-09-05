@@ -6,6 +6,8 @@
 const int xPin = 0;
 const int yPin = 1;
 
+const int lightSensorPin = 2;
+
 // Output pins
 const int openPin = 5;
 const int closePin = 6;
@@ -132,6 +134,11 @@ void mainMenu()
     bool first = true;
     while (true) {
         time = millis();
+        
+        int lightState = analogRead(lightSensorPin);
+        Serial.print("Light: ");
+        Serial.println(lightState);
+        
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
 
