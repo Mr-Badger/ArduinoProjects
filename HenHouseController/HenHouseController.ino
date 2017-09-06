@@ -111,8 +111,6 @@ LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 void setup()
 {
     Serial.begin(115200);
-    Serial.println(lightMenuSize);
-    Serial.println(menuSize);
     pinMode(pwmPin, OUTPUT);
     pinMode(ledPin, OUTPUT);
 
@@ -125,6 +123,7 @@ void setup()
     lcd.createChar(0, upArrow);
     lcd.createChar(1, downArrow);
 }
+
 void loop()
 {
     mainMenu();
@@ -135,24 +134,7 @@ void mainMenu()
     bool first = true;
     while (true) {
         time = millis();
-        
-        int heatState = analogRead(tempSensorPin);
-        float voltage = heatState * 5.0;
-        voltage /= 1024.0; 
-        // print out the voltage
-        Serial.print(voltage); 
-        Serial.println(" volts");
-        float temperatureC = (voltage - 0.5) * 100; 
-        //converting from 10 mv per degree wit 500 mV offset
-        //to degrees ((voltage - 500mV) times 100)
-        Serial.print(temperatureC); 
-        Serial.println(" degrees C");
-        
-        
-        int lightState = analogRead(lightSensorPin);
-        Serial.print("Light: ");
-        Serial.println(lightState);
-        
+
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
 
@@ -176,6 +158,7 @@ void mainMenu()
         if (xPos != newPos || first) {
             lcd.clear();
 
+            // Prints menu arrows
             lcd.setCursor(0, 0);
             lcd.print(newPos != 0 ? (char)0 : ' ');
             lcd.setCursor(0, SCREEN_ROWS - 1);
@@ -474,6 +457,27 @@ void setLightTimer()
         }
     }
 }
+
+void LightHeatTest() {
+    int heatState = analogRead(tempSensorPin);
+    double temp = Thermistor(heatState);      
+    
+    Serial.print(temp); 
+    Serial.println(" degrees C");
+    
+    int lightState = analogRead(lightSensorPin);
+    Serial.print("Light: ");
+    Serial.println(lightState);
+    
+}
+
+double Thermistor(int RawADC) {
+    double Temp;
+    Temp = log(10000.0*((1024.0/RawADC-1))); 
+    Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp )) * Temp );
+    Temp = Temp - 273.15; // Convert Kelvin to Celcius
+    return Temp;
+  }
 
 void advanceTimer(int* num, int add)
 {
