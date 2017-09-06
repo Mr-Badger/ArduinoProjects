@@ -94,13 +94,13 @@ const char onOffStates[][4] {
     "Off"
 };
 
+typedef void (*vvFunction)();
 
-/*typedef void (*vvFunction)();
-
-vvFunction table[] =  {
+vvFunction menuTable[] {
     controlPiston, 
-    controlPiston,
-};*/
+    setPistonTimer,
+    setLightTimer
+};
 
 // initialize the library with the numbers of the interface pins
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
@@ -142,13 +142,7 @@ void mainMenu()
         } else if (JSUp() && newPos > 0) {
             newPos--;
         } else if (JSRight()) {
-            if (newPos == 0) {
-                controlPiston();
-            } else if (newPos == 1) {
-                setPistonTimer();
-            } else if (newPos == 2) {
-                setLightTimer();
-            }
+            menuTable[newPos]();
             newPos = -1;
         }
 
@@ -456,7 +450,8 @@ void setLightTimer()
     }
 }
 
-void LightHeatTest() {
+void LightHeatTest() 
+{
     int heatState = analogRead(tempSensorPin);
     double temp = Thermistor(heatState);      
     
@@ -469,13 +464,14 @@ void LightHeatTest() {
     
 }
 
-double Thermistor(int RawADC) {
+double Thermistor(int RawADC) 
+{
     double Temp;
     Temp = log(10000.0*((1024.0/RawADC-1))); 
     Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp )) * Temp );
     Temp = Temp - 273.15; // Convert Kelvin to Celcius
     return Temp;
-  }
+}
 
 void advanceTimer(int* num, int add)
 {
@@ -509,8 +505,7 @@ void movePiston(int state, bool setOpen)
 
     digitalWrite(openPin, setOpen ? HIGH : LOW);
     digitalWrite(closePin, setOpen ? LOW : HIGH);
-    if (timeHeld > TRIGGER_TIME
-) {
+    if (timeHeld > TRIGGER_TIME) {
         isHolding = true;
         isOpening = setOpen;
         holdTimeStart = time;
