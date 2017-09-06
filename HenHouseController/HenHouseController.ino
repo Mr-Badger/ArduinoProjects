@@ -18,8 +18,8 @@ const int ledPin = 10;
 // Other constants
 const int X_DEADZONE = 40;
 const int Y_DEADZONE = 200;
-const int triggerTime = 1000;
-const int holdTime = 25000;
+const int TRIGGER_TIME = 1000;
+const int HOLD_TIME = 25000;
 
 const int TIMER_STEP = 30;
 
@@ -47,15 +47,13 @@ int xPos = 0;
 
 // Stored values
 byte lightState = EEPROM[0];
-unsigned short lightOnTimer = EEPROM[1] * 60 + EEPROM[2];
-unsigned short lightOffTimer = EEPROM[3] * 60 + EEPROM[4];
+unsigned int lightOnTimer = EEPROM[1] * 60 + EEPROM[2];
+unsigned int lightOffTimer = EEPROM[3] * 60 + EEPROM[4];
 
 bool pistonAutoOpen = EEPROM[5];
 bool pistonAutoClose = EEPROM[6];
-unsigned short pistonOpenTimer =  EEPROM[7] * 60 + EEPROM[8];
-unsigned short pistonClosedTimer =  EEPROM[9] * 60 + EEPROM[10];
-
-
+unsigned int pistonOpenTimer = EEPROM[7] * 60 + EEPROM[8];
+unsigned int pistonClosedTimer = EEPROM[9] * 60 + EEPROM[10];
 
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
@@ -65,7 +63,7 @@ const char menuItems[][16] {
     "Piston timer",
     "Light timer"
 };
-const short menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
+const int menuSize = sizeof(menuItems) / sizeof(menuItems[0]);
 
 const char pistonMenu[][16] {
     "Auto open ",
@@ -74,7 +72,7 @@ const char pistonMenu[][16] {
     "Close ti",
     "Back"
 };
-const short pistonMenuSize = sizeof(pistonMenu) / sizeof(pistonMenu[0]);
+const int pistonMenuSize = sizeof(pistonMenu) / sizeof(pistonMenu[0]);
 
 const char lightMenu[][16] {
     "Mode",
@@ -82,14 +80,14 @@ const char lightMenu[][16] {
     "Off time",
     "Back"
 };
-const short lightMenuSize = sizeof(lightMenu)  / sizeof(lightMenu[0]);
+const int lightMenuSize = sizeof(lightMenu)  / sizeof(lightMenu[0]);
 
 const char lightStates[][5] {
     "Auto",
     "On",
     "Off"
 };
-const short lightStatesSize = sizeof(lightStates)  / sizeof(lightStates[0]);
+const int lightStatesSize = sizeof(lightStates)  / sizeof(lightStates[0]);
 
 const char onOffStates[][4] {
     "On",
@@ -138,7 +136,7 @@ void mainMenu()
         jsXstate = analogRead(xPin) - 512;
         jsYstate = analogRead(yPin) - 512;
 
-        short newPos = xPos;
+        int newPos = xPos;
         if (JSDown() && newPos < menuSize - 1) {
             newPos++;
         } else if (JSUp() && newPos > 0) {
@@ -200,7 +198,7 @@ void controlPiston()
         if (isHolding) {
             analogWrite(pwmPin, 255);
             analogWrite(ledPin, 255);
-            if ((time > holdTimeStart + holdTime) || (!isOpening && JSDown()) || (isOpening && JSUp())) {
+            if ((time > holdTimeStart + HOLD_TIME) || (!isOpening && JSDown()) || (isOpening && JSUp())) {
                 analogWrite(ledPin, 0);
                 isHolding = false;
             }
@@ -218,7 +216,7 @@ void controlPiston()
 
 void setPistonTimer()
 {
-    short yPos = 0;
+    int yPos = 0;
     xPos = 0;
     bool updateScreen = true;
 
@@ -347,7 +345,7 @@ void setPistonTimer()
 
 void setLightTimer()
 {
-    short yPos = 0;
+    int yPos = 0;
     xPos = 0;
     bool updateScreen = true;
     
@@ -489,7 +487,7 @@ void advanceTimer(int* num, int add)
     }
 }
 
-void printTimeLCD(unsigned short time)
+void printTimeLCD(unsigned int time)
 {
     int hour = time / 60;
     int minutes = time % 60;
@@ -511,7 +509,8 @@ void movePiston(int state, bool setOpen)
 
     digitalWrite(openPin, setOpen ? HIGH : LOW);
     digitalWrite(closePin, setOpen ? LOW : HIGH);
-    if (timeHeld > triggerTime) {
+    if (timeHeld > TRIGGER_TIME
+) {
         isHolding = true;
         isOpening = setOpen;
         holdTimeStart = time;
