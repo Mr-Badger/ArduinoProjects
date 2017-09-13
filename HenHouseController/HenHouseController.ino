@@ -35,84 +35,36 @@ unsigned long holdTimeStart = 0;
 
 bool isHolding = false;
 bool isOpening = true;
-
-const char lightStates[][5]{
-    "Auto",
-    "On",
-    "Off"
-};
-const int lightStatesSize = sizeof(lightStates) / sizeof(lightStates[0]);
-
-const char onOffStates[][4]{
-    "On",
-    "Off"
-};
 */
-class Selectable 
-{
-    String type;
+
+class Action {
 public:
-    Selectable() {
-        type = "select";
-    }
+    virtual int Get() { return 0; }
 
+    virtual void Update() {}
 
-    String Type() 
-    {
-        return type;
-    }
+    virtual void Increase() {}
+
+    virtual void Decrease() {}
+    
+    virtual char* GetFormat() { return ""; }
+
+    virtual ~Action() {}
 };
 
-class Action
-{ 
-protected:
-    String type;
-
-public:
-    Action() 
-    {
-    }
-    
-    String Type() 
-    {
-        return type;
-    }
-    
-    virtual int Get()
-    {
-        return 0;
-    }
-
-    virtual void Update()
-    {
-    }
-
-    virtual void Increase()
-    {
-    }
-
-    virtual void Decrease()
-    {
-    }
-
-    virtual char* GetFormat()
-    {
-        return "";
-    }
-};
-
-class StoredTime : Action
-{
+class StoredTime : public Action {
     static const byte STEP = 10;
-    
+
     int time;
     byte address;
+    char* format = "00:00";
+    
 
 public:
-    StoredTime(byte address) : address(address)
+    StoredTime(byte address)
+        : address(address)
     {
         time = EEPROM[address] * 60 + EEPROM[address + 1];
-        type = "time";
     }
 
     virtual int Get()
@@ -123,7 +75,7 @@ public:
     virtual void Update()
     {
         EEPROM[address] = time / 60;
-        EEPROM[address + 1] = time % 60;   
+        EEPROM[address + 1] = time % 60;
     }
 
     virtual void Increase()
@@ -142,40 +94,38 @@ public:
         }
     }
 
-    virtual char * GetFormat()
-    {   
-        char format[6];
+    virtual char* GetFormat()
+    {
         int hour = time / 60;
         int minutes = time % 60;
 
         format[0] = (hour / 10) + '0';
         format[1] = (hour % 10) + '0';
-        format[2] = ':';
         format[3] = (minutes / 10) + '0';
         format[4] = (minutes % 10) + '0';
         return format;
     }
+
+    virtual ~StoredTime() {}
 };
 
-class StoredState : Action
-{
-    byte state;
+class StoredState : public Action {
     byte address;
-    byte stateCount;
+    byte state;
+    byte count;
 
-    const char values[3][5] {
+    const char values[3][5]{
         "On",
         "Off",
         "Auto"
     };
 
 public:
-    StoredState(byte address, byte count) 
+    StoredState(byte address, byte count)
         : address(address)
-        , stateCount(count)
+        , count(count)
     {
         state = EEPROM[address];
-        type = "state";
     }
 
     virtual int Get()
@@ -191,97 +141,65 @@ public:
     virtual void Increase()
     {
         state++;
-        if (state >= stateCount)
-            state = state % stateCount;
+        if (state >= count)
+            state %= count;
     }
 
     virtual void Decrease()
     {
         state--;
-        if (state < 0)
-            state = state + stateCount;  
+        if (state >= count)
+            state %= count;
     }
 
     virtual char* GetFormat()
     {
         return values[state];
     }
+
+    virtual ~StoredState() {}    
 };
 
 class MenuItem {
     const String title;
-    
-    Selectable action;
-    
+
+    Action* action;
+
 public:
-    MenuItem(String title, Selectable action)
-    : title(title)
+    MenuItem(String title, Action* action)
+        : title(title)
     {
         this->action = action;
     }
-    
-    String GetTitle()
+
+    String Title()
     {
         return title;
     }
 
-    Selectable* GetAction()
+    Action* Action()
     {
-        return &action;
-    }
-};
-
-class Menu {
-    const Menu* parent;
-    
-    const MenuItem* menuItems;
-
-    const byte size;
-    
-public:
-    Menu(Menu* parent, MenuItem menuItems[], byte size)
-        : parent(parent)
-        , size(size)
-    {
-        this->menuItems = menuItems;
-        //type = "menu";
-    }
-    
-    Selectable* GetAction(int pos) {
-        return menuItems[pos].GetAction();
-    }
-    
-    int GetSize()
-    {
-        return size;
-    }
-    
-    MenuItem* GetMenuItems()
-    {
-        return menuItems;
-    }
-    
-    Menu* GetParent()
-    {
-        return parent;
+        return action;
     }
 };
 
 class MenuController {
-    
-    const Menu currentMenu;
+
     LiquidCrystal_I2C lcd;
+    const MenuItem* menuItems;
+
     const byte columns;
     const byte rows;
-    
+
     //int clickTime = 0;
-     
+
     byte posX = 0;
     byte posY = 0;
-    
+
     int stickX;
     int stickY;
-    
+    int size;
+
     enum StickStates {
         IDLE,
         MOVEUP,
@@ -289,95 +207,94 @@ class MenuController {
         MOVELEFT,
         MOVERIGHT
     } stickState;
-    
+
     int time;
-    void proccessInputs() 
+
+    void proccessInputs()
     {
         stickX = analogRead(xPin) - 512;
         stickY = analogRead(yPin) - 512;
-        
-        if(stickY + Y_DEADZONE < 0) {
+
+        if (stickY + Y_DEADZONE < 0) {
             stickState = MOVERIGHT;
-        }
-        else if(stickY - Y_DEADZONE > 0) {
+        } else if (stickY - Y_DEADZONE > 0) {
             stickState = MOVELEFT;
-        }
-        else if(stickX + X_DEADZONE < 0) {
+        } else if (stickX + X_DEADZONE < 0) {
             stickState = MOVEUP;
-        }
-        else if(stickX - X_DEADZONE > 0) {
+        } else if (stickX - X_DEADZONE > 0) {
             stickState = MOVEDOWN;
-        }
-        else {
+        } else {
             stickState = IDLE;
         }
         if (posY == 0) {
-            if (stickState == MOVEDOWN && posX < currentMenu.GetSize() - 1) {
+            if (stickState == MOVEDOWN && posX < size - 1) {
                 posX++;
             } else if (stickState == MOVEUP && posX > 0) {
                 posX--;
-            } else if(stickState == MOVERIGHT) {
-                Selectable* func = currentMenu.GetAction(posX);
-                if(func != NULL) {
-                    Serial.println(func->Type());
-                    posY = 1;
-                }
+            } else if (stickState == MOVERIGHT) {
+                posY = 1;
             }
         }
         if (posY == 1) {
-            if(stickState == MOVELEFT) {
+            if (stickState == MOVEDOWN) {
+                menuItems[posX].Action()->Increase();
+            } else if (stickState == MOVEUP) {
+                menuItems[posX].Action()->Decrease();
+            } else if (stickState == MOVELEFT) {
+                menuItems[posX].Action()->Update();
                 posY = 0;
-            } 
+            }
         }
     }
 
 public:
-    MenuController(Menu startMenu, LiquidCrystal_I2C lcd, int columns, int rows)
-    : currentMenu(startMenu)
-    , lcd(lcd)
-    , columns(columns)
-    , rows(rows)
+    MenuController(MenuItem menuItems[], byte size, LiquidCrystal_I2C lcd, byte columns, byte rows)
+        : size(size)
+        , lcd(lcd)
+        , columns(columns)
+        , rows(rows)
     {
+        this->menuItems = menuItems;
     }
-    
+
     void Setup()
     {
         lcd.begin(columns, rows);
         lcd.createChar(0, upArrow);
         lcd.createChar(1, downArrow);
     }
-    
+
     void Loop()
     {
         time = millis();
         proccessInputs();
-        if(stickState != IDLE) {
+        if (stickState != IDLE) {
             Display();
         }
     }
-    
+
     void Display()
     {
-        int size = currentMenu.GetSize();
-        MenuItem* items = currentMenu.GetMenuItems();
         lcd.clear();
-        
+
         // Prints menu arrows
         lcd.setCursor(0, 0);
         lcd.print(posX != 0 ? (char)0 : ' ');
         lcd.setCursor(0, rows - 1);
         lcd.print(posX != size - 1 ? (char)1 : ' ');
-        
+
         for (int i = 0; i < rows; i++) {
             if (posX + i < size) {
                 lcd.setCursor(1, i);
-                lcd.print(items[i + posX].GetTitle());
+                lcd.print(menuItems[i + posX].Title());
+                lcd.print(' ');
+                lcd.print(menuItems[i + posX].Action()->GetFormat());
             }
         }
-        
+
         // Print blinking cursor when editing
         if (posY == 1) {
-            lcd.setCursor(items[posX].GetTitle().length() + 1, 0);
+            lcd.setCursor(menuItems[posX].Title().length() + 1, 0);
             lcd.blink();
         } else {
             lcd.noBlink();
@@ -385,45 +302,21 @@ public:
     }
 };
 
-
-StoredTime lightsOnTime(0);
-StoredTime lightsOffTime(2);
-StoredState lightState(3, 3);
-
-StoredState pistonAutoOpen(4, 2);
-StoredState pistonAutoClose(5, 2);
-StoredTime pistonOpenTime(6);
-StoredTime pistonCloseTime(8);
-
-
-MenuItem pistonList[] {
-    MenuItem("Auto open ", Selectable()),
-    MenuItem("Auto close", Selectable()),
-    MenuItem("Open ", Selectable()),
-    MenuItem("Close", Selectable()),
-    MenuItem("Back", Selectable())
-};
-
-MenuItem lightList[] {
-    MenuItem("Mode", Selectable()),
-    MenuItem("On time ", Selectable()),
-    MenuItem("Off time", Selectable()),
-    MenuItem("Back", Selectable())
-};
-
 MenuItem mainList[] {
-    MenuItem("Piston manual", Selectable()),
-    MenuItem("Piston timer", Selectable()),
-    MenuItem("Light timer", Selectable())
+    MenuItem("--PISTONS--", new Action()),
+    MenuItem("Auto open ",  new StoredState(0, 2)),
+    MenuItem("Auto close",  new StoredState(1, 2)),
+    MenuItem("Open ",       new StoredTime(2)),
+    MenuItem("Close",       new StoredTime(4)),
+    MenuItem("--LIGHTS--",  new Action()),
+    MenuItem("Light mode",  new StoredState(6, 3)),
+    MenuItem("On time ",    new StoredTime(7)),
+    MenuItem("Off time",    new StoredTime(9))
 };
-
-Menu mainMenu(NULL, mainList, 3);
-Menu lightMenu(NULL, lightList, 4);
-Menu pistonMenu(NULL, pistonList, 5);
 
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
 
-MenuController ctrl(mainMenu, lcd, 16, 2);
+MenuController ctrl(mainList, 9, lcd, 16, 2);
 
 void setup()
 {
@@ -445,42 +338,6 @@ void loop()
     delay(200);
 }
 /*
-void mainMenu2()
-{
-    if (JSDown() && xPos < menuSize - 1) {
-        xPos++;
-        updateS = true;
-    } else if (JSUp() && xPos > 0) {
-        xPos--;
-        updateS = true;
-    } else if (JSRight()) {
-        menuTable[xPos]();
-        updateS = true;
-    }
-
-    //Update screen
-    if (updateS) {
-        lcd.clear();
-
-        // Prints menu arrows
-        lcd.setCursor(0, 0);
-        lcd.print(xPos != 0 ? (char)0 : ' ');
-        lcd.setCursor(0, SCREEN_ROWS - 1);
-        lcd.print(xPos != menuSize - 1 ? (char)1 : ' ');
-
-        if (xPos == -1)
-            xPos = 0;
-        for (int i = 0; i < SCREEN_ROWS; i++) {
-            if (xPos + i < menuSize) {
-                lcd.setCursor(1, i);
-                lcd.print(menuItems[i + xPos]);
-            }
-        }
-        updateS = false;
-    }
-    delay(100);
-}
-
 void controlPiston()
 {
     lcd.clear();
@@ -514,248 +371,6 @@ void controlPiston()
             resetTime();
         }
         delay(20);
-    }
-}
-
-void setPistonTimer()
-{
-    int yPos = 0;
-    xPos = 0;
-    bool updateScreen = true;
-
-    while (true) {
-        time = millis();
-        jsXstate = analogRead(xPin) - 512;
-        jsYstate = analogRead(yPin) - 512;
-
-        if (updateScreen) {
-            lcd.clear();
-
-            // Print menu arrows
-            lcd.setCursor(0, 0);
-            lcd.print(xPos != 0 ? (char)0 : ' ');
-            lcd.setCursor(0, SCREEN_ROWS - 1);
-            lcd.print(xPos != pistonMenuSize - 1 ? (char)1 : ' ');
-
-            for (int x = 0; x < SCREEN_ROWS; x++) {
-                if (xPos + x < pistonMenuSize) {
-                    lcd.setCursor(1, x);
-                    lcd.print(pistonMenu[x + xPos]);
-                }
-            }
-
-            // Print current configuration
-            if (0 <= xPos && xPos < 1) {
-                lcd.setCursor(12, xPos);
-                lcd.print(onOffStates[pistonAutoOpen]);
-            }
-            if (0 <= xPos && xPos < 2) {
-                lcd.setCursor(12, 1 - xPos);
-                lcd.print(onOffStates[pistonAutoClose]);
-            }
-            if (1 <= xPos && xPos < 3) {
-                lcd.setCursor(10, 2 - xPos);
-                printTimeLCD(pistonOpenTimer);
-            }
-            if (2 <= xPos && xPos < 4) {
-                lcd.setCursor(10, 3 - xPos);
-                printTimeLCD(pistonClosedTimer);
-            }
-
-            // Print blinking cursor when editing
-            if (yPos == 1) {
-                lcd.setCursor(strlen(pistonMenu[xPos]) + 1, 0);
-                lcd.blink();
-            } else {
-                lcd.noBlink();
-            }
-
-            delay(150);
-            updateScreen = false;
-        }
-
-        delay(150);
-        if (yPos == 0) {
-            if (xPos == 4 && (JSLeft() || JSRight())) {
-                xPos = 0;
-                break;
-            }
-            if (JSDown() && xPos < pistonMenuSize - 1) {
-                xPos++;
-                updateScreen = true;
-            } else if (JSUp() && xPos > 0) {
-                xPos--;
-                updateScreen = true;
-            } else if (JSRight()) {
-                yPos = 1;
-                updateScreen = true;
-            }
-        } else if (yPos == 1) {
-            if (xPos == 0) {
-                if (JSUp()) {
-                    pistonAutoOpen = !pistonAutoOpen;
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    pistonAutoOpen = !pistonAutoOpen;
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(5, pistonAutoOpen);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            } else if (xPos == 1) {
-                if (JSUp()) {
-                    pistonAutoClose = !pistonAutoClose;
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    pistonAutoClose = !pistonAutoClose;
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(6, pistonAutoClose);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            } else if (xPos == 2) {
-                if (JSUp()) {
-                    advanceTimer(&pistonOpenTimer, TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    advanceTimer(&pistonOpenTimer, -TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(7, pistonOpenTimer / 60);
-                    EEPROM.update(8, pistonOpenTimer % 60);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            } else if (xPos == 3) {
-                if (JSUp()) {
-                    advanceTimer(&pistonClosedTimer, TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    advanceTimer(&pistonClosedTimer, -TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(9, pistonClosedTimer / 60);
-                    EEPROM.update(10, pistonClosedTimer % 60);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            }
-        }
-    }
-}
-
-void setLightTimer()
-{
-    int yPos = 0;
-    xPos = 0;
-    bool updateScreen = true;
-
-    while (true) {
-        time = millis();
-        jsXstate = analogRead(xPin) - 512;
-        jsYstate = analogRead(yPin) - 512;
-
-        if (updateScreen) {
-            lcd.clear();
-
-            // Print menu arrows
-            lcd.setCursor(0, 0);
-            lcd.print(xPos != 0 ? (char)0 : ' ');
-            lcd.setCursor(0, SCREEN_ROWS - 1);
-            lcd.print(xPos != lightMenuSize - 1 ? (char)1 : ' ');
-
-            for (int x = 0; x < SCREEN_ROWS; x++) {
-                if (xPos + x < lightMenuSize) {
-                    lcd.setCursor(1, x);
-                    lcd.print(lightMenu[x + xPos]);
-                }
-            }
-
-            // Print current configuration
-            if (0 <= xPos && xPos < 1) {
-                lcd.setCursor(6, xPos);
-                lcd.print(lightStates[lightState]);
-            }
-            if (0 <= xPos && xPos < 2) {
-                lcd.setCursor(10, 1 - xPos);
-                printTimeLCD(lightOnTimer);
-            }
-            if (1 <= xPos && xPos < 3) {
-                lcd.setCursor(10, 2 - xPos);
-                printTimeLCD(lightOffTimer);
-            }
-
-            // Print blinking cursor when editing
-            if (yPos == 1) {
-                lcd.setCursor(strlen(lightMenu[xPos]) + 1, 0);
-                lcd.blink();
-            } else {
-                lcd.noBlink();
-            }
-
-            delay(150);
-            updateScreen = false;
-        }
-
-        delay(150);
-        if (yPos == 0) {
-            if (xPos == 3 && (JSLeft() || JSRight())) {
-                xPos = 0;
-                break;
-            }
-            if (JSDown() && xPos < lightMenuSize - 1) {
-                xPos++;
-                updateScreen = true;
-            } else if (JSUp() && xPos > 0) {
-                xPos--;
-                updateScreen = true;
-            } else if (JSRight()) {
-                yPos = 1;
-                updateScreen = true;
-            }
-        } else if (yPos == 1) {
-            if (xPos == 0) {
-                if (JSUp()) {
-                    lightState = (lightState + 1) % lightStatesSize;
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    lightState = (lightState + (lightStatesSize - 1)) % lightStatesSize;
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(0, lightState);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            } else if (xPos == 1) {
-                if (JSUp()) {
-                    advanceTimer(&lightOnTimer, TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    advanceTimer(&lightOnTimer, -TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(1, lightOnTimer / 60);
-                    EEPROM.update(2, lightOnTimer % 60);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            } else if (xPos == 2) {
-                if (JSUp()) {
-                    advanceTimer(&lightOffTimer, TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSDown()) {
-                    advanceTimer(&lightOffTimer, -TIMER_STEP);
-                    updateScreen = true;
-                } else if (JSLeft()) {
-                    EEPROM.update(3, lightOffTimer / 60);
-                    EEPROM.update(4, lightOffTimer % 60);
-                    yPos = 0;
-                    updateScreen = true;
-                }
-            }
-        }
     }
 }
 
