@@ -161,18 +161,18 @@ public:
 };
 
 class MenuItem {
-    const String title;
+    const char* title;
 
     Action* action;
 
 public:
-    MenuItem(String title, Action* action)
+    MenuItem(char* title, Action* action)
         : title(title)
     {
         this->action = action;
     }
 
-    String Title()
+    char* Title()
     {
         return title;
     }
@@ -286,15 +286,14 @@ public:
         for (int i = 0; i < rows; i++) {
             if (posX + i < size) {
                 lcd.setCursor(1, i);
-                lcd.print(menuItems[i + posX].Title());
-                lcd.print(' ');
+                lcd.print(menuItems[i + posX].Title() + ' ');
                 lcd.print(menuItems[i + posX].Action()->GetFormat());
             }
         }
-
+        
         // Print blinking cursor when editing
         if (posY == 1) {
-            lcd.setCursor(menuItems[posX].Title().length() + 1, 0);
+            lcd.setCursor(strlen(menuItems[posX].Title()) + 1, 0);
             lcd.blink();
         } else {
             lcd.noBlink();
