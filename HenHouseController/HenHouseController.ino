@@ -161,26 +161,19 @@ public:
 };
 
 class MenuItem {
-    const char* title;
-
+    const String title;
     Action* action;
 
-public:
-    MenuItem(char* title, Action* action)
+    public:
+    MenuItem(String title, Action* action)
         : title(title)
     {
         this->action = action;
     }
 
-    char* Title()
-    {
-        return title;
-    }
+    String Title() { return title; }
 
-    Action* Action()
-    {
-        return action;
-    }
+    Action* Action() { return action; }
 };
 
 class MenuController {
@@ -214,15 +207,14 @@ class MenuController {
     {
         stickX = analogRead(xPin) - 512;
         stickY = analogRead(yPin) - 512;
-
-        if (stickY + Y_DEADZONE < 0) {
-            stickState = MOVERIGHT;
-        } else if (stickY - Y_DEADZONE > 0) {
-            stickState = MOVELEFT;
-        } else if (stickX + X_DEADZONE < 0) {
+        if (stickX + X_DEADZONE < 0) {
             stickState = MOVEUP;
         } else if (stickX - X_DEADZONE > 0) {
             stickState = MOVEDOWN;
+        } else if (stickY + Y_DEADZONE < 0) {
+            stickState = MOVERIGHT;
+        } else if (stickY - Y_DEADZONE > 0) {
+            stickState = MOVELEFT;
         } else {
             stickState = IDLE;
         }
@@ -286,14 +278,14 @@ public:
         for (int i = 0; i < rows; i++) {
             if (posX + i < size) {
                 lcd.setCursor(1, i);
-                lcd.print(menuItems[i + posX].Title() + ' ');
-                lcd.print(menuItems[i + posX].Action()->GetFormat());
+                lcd.print(menuItems[posX + i].Title() + ' ');
+                lcd.print(menuItems[posX + i].Action()->GetFormat());
             }
         }
         
         // Print blinking cursor when editing
         if (posY == 1) {
-            lcd.setCursor(strlen(menuItems[posX].Title()) + 1, 0);
+            lcd.setCursor(menuItems[posX].Title().length() + 1, 0);
             lcd.blink();
         } else {
             lcd.noBlink();
@@ -303,14 +295,14 @@ public:
 
 MenuItem mainList[] {
     MenuItem("--PISTONS--", new Action()),
-    MenuItem("Auto open ",  new StoredState(0, 2)),
-    MenuItem("Auto close",  new StoredState(1, 2)),
-    MenuItem("Open ",       new StoredTime(2)),
-    MenuItem("Close",       new StoredTime(4)),
-    MenuItem("--LIGHTS--",  new Action()),
-    MenuItem("Light mode",  new StoredState(6, 3)),
-    MenuItem("On time ",    new StoredTime(7)),
-    MenuItem("Off time",    new StoredTime(9))
+    MenuItem("Auto open ", new StoredState(0, 2)),
+    MenuItem("Auto close", new StoredState(1, 2)),
+    MenuItem("Open ", new StoredTime(2)),
+    MenuItem("Close", new StoredTime(4)),
+    MenuItem("--LIGHTS--", new Action()),
+    MenuItem("Light mode", new StoredState(6, 3)),
+    MenuItem("On time ", new StoredTime(7)),
+    MenuItem("Off time", new StoredTime(9))
 };
 
 LiquidCrystal_I2C lcd(0x3F, 2, 1, 0, 4, 5, 6, 7, 3, POSITIVE);
