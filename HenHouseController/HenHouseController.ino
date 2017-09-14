@@ -24,29 +24,18 @@ const int Y_DEADZONE = 200;
 uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
 
-/*
-const int TRIGGER_TIME = 1000;
-const int HOLD_TIME = 25000;
-
-unsigned long time = 0;
-unsigned long timeStarted = 0;
-unsigned long timeHeld = 0;
-unsigned long holdTimeStart = 0;
-
-bool isHolding = false;
-bool isOpening = true;
-*/
-
 class Action {
-public:
+    public:
     virtual int Get() { return 0; }
 
     virtual void Update() {}
 
-    virtual void Increase() {}
+    virtual void Increase(int amount) {}
 
-    virtual void Decrease() {}
+    virtual void Decrease(int amount) {}
     
+    virtual void Loop() {}
+
     virtual char* GetFormat() { return ""; }
 
     virtual ~Action() {}
@@ -58,9 +47,8 @@ class StoredTime : public Action {
     int time;
     byte address;
     char* format = "00:00";
-    
 
-public:
+    public:
     StoredTime(byte address)
         : address(address)
     {
@@ -78,7 +66,7 @@ public:
         EEPROM[address + 1] = time % 60;
     }
 
-    virtual void Increase()
+    virtual void Increase(int amount)
     {
         time += STEP;
         if (time >= 1440) {
@@ -86,7 +74,7 @@ public:
         }
     }
 
-    virtual void Decrease()
+    virtual void Decrease(int amount)
     {
         time -= STEP;
         if (time < 0) {
@@ -120,7 +108,7 @@ class StoredState : public Action {
         "Auto"
     };
 
-public:
+    public:
     StoredState(byte address, byte count)
         : address(address)
         , count(count)
@@ -138,26 +126,96 @@ public:
         EEPROM[address] = state;
     }
 
-    virtual void Increase()
+    virtual void Increase(int amount)
     {
         state++;
         if (state >= count)
             state %= count;
     }
 
-    virtual void Decrease()
+    virtual void Decrease(int amount)
     {
         state--;
         if (state >= count)
             state %= count;
     }
 
-    virtual char* GetFormat()
+    virtual char* GetFormat() { return values[state]; }
+
+    virtual ~StoredState() {}
+};
+
+class ControlPiston : public Action {
+    static const int TRIGGER_TIME = 1000;
+    static const int HOLD_TIME = 25000;
+    
+    bool isHolding = false;
+    bool isOpening = true;
+
+    unsigned long time = 0;
+    unsigned long timeStarted = 0;
+    unsigned long timeHeld = 0;
+    unsigned long holdTimeStart = 0;
+
+    int lastState = 0;
+
+    void movePiston(int state)
     {
-        return values[state];
+        lastState = state;
+        bool setOpen = state > 0;
+        setTimeElapsed();
+        analogWrite(pwmPin, map(abs(state), 0, 512, 40, 255));
+    
+        digitalWrite(openPin, setOpen ? HIGH : LOW);
+        digitalWrite(closePin, setOpen ? LOW : HIGH);
+        if (timeHeld > TRIGGER_TIME) {
+            isHolding = true;
+            isOpening = setOpen;
+            holdTimeStart = time;
+            resetTime();
+        }
+    }
+    
+    void setTimeElapsed()
+    {
+        if (timeStarted == 0) {
+            timeStarted = time;
+        }
+        timeHeld = time - timeStarted;
+    }
+    
+    void resetTime()
+    {
+        timeHeld = 0;
+        timeStarted = 0;
     }
 
-    virtual ~StoredState() {}    
+    public:
+    virtual void Increase(int amount)
+    {
+        movePiston(amount);
+    }
+
+    virtual void Decrease(int amount)
+    {
+        movePiston(amount);
+    }
+
+    virtual char* GetFormat() { return ""; }
+
+    virtual void Loop()
+    {
+        time = millis();
+        if (isHolding) {
+            analogWrite(pwmPin, 255);
+            if ((time > holdTimeStart + HOLD_TIME) || (!isOpening && lastState > 0) || (isOpening && lastState < 0)) {
+                isHolding = false;
+            }
+        } else {
+            analogWrite(pwmPin, 0);
+            resetTime();
+        }
+    }
 };
 
 class MenuItem {
@@ -228,13 +286,16 @@ class MenuController {
             }
         }
         if (posY == 1) {
+            Action* action = menuItems[posX].Action();
             if (stickState == MOVEDOWN) {
-                menuItems[posX].Action()->Increase();
+                action->Increase(stickX);
             } else if (stickState == MOVEUP) {
-                menuItems[posX].Action()->Decrease();
+                action->Decrease(stickX);
             } else if (stickState == MOVELEFT) {
-                menuItems[posX].Action()->Update();
+                action->Update();
                 posY = 0;
+            } else {
+                action->Loop();
             }
         }
     }
@@ -295,6 +356,7 @@ public:
 
 MenuItem mainList[] {
     MenuItem("--PISTONS--", new Action()),
+    MenuItem("Manual Piston", new ControlPiston()),
     MenuItem("Auto open ", new StoredState(0, 2)),
     MenuItem("Auto close", new StoredState(1, 2)),
     MenuItem("Open ", new StoredTime(2)),
@@ -328,43 +390,8 @@ void loop()
     ctrl.Loop();
     delay(200);
 }
+
 /*
-void controlPiston()
-{
-    lcd.clear();
-    lcd.setCursor(2, 0);
-    lcd.print("Piston mode");
-    lcd.setCursor(0, 1);
-    lcd.print("< Back");
-
-    while (true) {
-        time = millis();
-        jsXstate = analogRead(xPin) - 512;
-        jsYstate = analogRead(yPin) - 512;
-
-        if (JSLeft()) {
-            break;
-        }
-
-        if (isHolding) {
-            analogWrite(pwmPin, 255);
-            analogWrite(ledPin, 255);
-            if ((time > holdTimeStart + HOLD_TIME) || (!isOpening && JSDown()) || (isOpening && JSUp())) {
-                analogWrite(ledPin, 0);
-                isHolding = false;
-            }
-        } else if (JSUp()) {
-            movePiston(jsXstate, false);
-        } else if (JSDown()) {
-            movePiston(jsXstate, true);
-        } else {
-            analogWrite(pwmPin, 0);
-            resetTime();
-        }
-        delay(20);
-    }
-}
-
 void LightHeatTest()
 {
     int heatState = analogRead(tempSensorPin);
@@ -385,35 +412,5 @@ double Thermistor(int RawADC)
     Temp = 1 / (0.001129148 + (0.000234125 + (0.0000000876741 * Temp * Temp)) * Temp);
     Temp = Temp - 273.15; // Convert Kelvin to Celcius
     return Temp;
-}
-
-void movePiston(int state, bool setOpen)
-{
-    setTimeElapsed();
-    int volt = map(abs(state), 0, 512, 40, 255);
-    analogWrite(pwmPin, volt);
-
-    digitalWrite(openPin, setOpen ? HIGH : LOW);
-    digitalWrite(closePin, setOpen ? LOW : HIGH);
-    if (timeHeld > TRIGGER_TIME) {
-        isHolding = true;
-        isOpening = setOpen;
-        holdTimeStart = time;
-        resetTime();
-    }
-}
-
-void setTimeElapsed()
-{
-    if (timeStarted == 0) {
-        timeStarted = time;
-    }
-    timeHeld = time - timeStarted;
-}
-
-void resetTime()
-{
-    timeHeld = 0;
-    timeStarted = 0;
 }
 */
