@@ -25,7 +25,7 @@ uint8_t upArrow[8] = { 0x0, 0x4, 0xE, 0x1B, 0x11, 0x0, 0x0 };
 uint8_t downArrow[8] = { 0x0, 0x0, 0x11, 0x1B, 0xE, 0x4, 0x0 };
 
 class Action {
-    public:
+public:
     virtual int Get() { return 0; }
 
     virtual void Update() {}
@@ -33,7 +33,7 @@ class Action {
     virtual void Increase(int amount) {}
 
     virtual void Decrease(int amount) {}
-    
+
     virtual void Loop() {}
 
     virtual char* GetFormat() { return ""; }
@@ -48,7 +48,7 @@ class StoredTime : public Action {
     byte address;
     char* format = "00:00";
 
-    public:
+public:
     StoredTime(byte address)
         : address(address)
     {
@@ -108,7 +108,7 @@ class StoredState : public Action {
         "Auto"
     };
 
-    public:
+public:
     StoredState(byte address, byte count)
         : address(address)
         , count(count)
@@ -148,7 +148,7 @@ class StoredState : public Action {
 class ControlPiston : public Action {
     static const int TRIGGER_TIME = 1000;
     static const int HOLD_TIME = 25000;
-    
+
     bool isHolding = false;
     bool isOpening = true;
 
@@ -165,7 +165,7 @@ class ControlPiston : public Action {
         bool setOpen = state > 0;
         setTimeElapsed();
         analogWrite(pwmPin, map(abs(state), 0, 512, 40, 255));
-    
+
         digitalWrite(openPin, setOpen ? HIGH : LOW);
         digitalWrite(closePin, setOpen ? LOW : HIGH);
         if (timeHeld > TRIGGER_TIME) {
@@ -175,7 +175,7 @@ class ControlPiston : public Action {
             resetTime();
         }
     }
-    
+
     void setTimeElapsed()
     {
         if (timeStarted == 0) {
@@ -183,14 +183,14 @@ class ControlPiston : public Action {
         }
         timeHeld = time - timeStarted;
     }
-    
+
     void resetTime()
     {
         timeHeld = 0;
         timeStarted = 0;
     }
 
-    public:
+public:
     virtual void Increase(int amount)
     {
         movePiston(amount);
@@ -222,7 +222,7 @@ class MenuItem {
     const String title;
     Action* action;
 
-    public:
+public:
     MenuItem(String title, Action* action)
         : title(title)
     {
@@ -343,7 +343,7 @@ public:
                 lcd.print(menuItems[posX + i].Action()->GetFormat());
             }
         }
-        
+
         // Print blinking cursor when editing
         if (posY == 1) {
             lcd.setCursor(menuItems[posX].Title().length() + 1, 0);
@@ -354,7 +354,7 @@ public:
     }
 };
 
-MenuItem mainList[] {
+MenuItem mainList[]{
     MenuItem("--PISTONS--", new Action()),
     MenuItem("Manual Piston", new ControlPiston()),
     MenuItem("Auto open ", new StoredState(0, 2)),
