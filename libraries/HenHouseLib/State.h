@@ -16,7 +16,11 @@ public:
     bool HeaterOn;
 
     //* User actions
-    bool DoorManualOpen;
+	bool ButtonClicked;
+	
+	bool ButtonHold;
+
+	bool ButtonReleased;
 
     //* Goals
     long LightsOnTime;
@@ -30,7 +34,9 @@ public:
     int HeatGoal;
 
     //* Logs
-    long DoorActivationTime;
+	long DoorActivationTime;
+	
+	long TimeFactor;
 };
 
 #endif
