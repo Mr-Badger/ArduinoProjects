@@ -8,6 +8,11 @@
 
 class GpsReader : public StateReader {
 
+
+private:
+	SoftwareSerial mySerial; // 10 is 9 and 11 is 10 ???
+	TinyGPS gps;
+
 public:
     GpsReader();
     

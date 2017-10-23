@@ -15,7 +15,8 @@ void HeaterMutator::TurnOnHeater()
 HeaterMutator::HeaterMutator(Logger* logger)
 {
     _logger = logger;
-    pinMode(HEATER_PIN, OUTPUT);
+	pinMode(HEATER_PIN, OUTPUT);
+	TurnOffHeater();
 }
 
 State HeaterMutator::MutateState(State state) 

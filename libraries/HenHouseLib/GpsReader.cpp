@@ -1,19 +1,19 @@
 #include "GpsReader.h"
 
+
 /*********************
  *10 to GPS Module TX*
  *09 to GPS Module RX*
  *********************/
 
-SoftwareSerial mySerial(10, 11); // 10 is 9 and 11 is 10 ???
-TinyGPS gps;
+
 
 //long _startTime = 0;
 long _gpsTime = -1;
 long _gpsMillis = -1;
 long _gpsDate = -1;
 
-GpsReader::GpsReader() {
+GpsReader::GpsReader() : mySerial(10, 11) {
     mySerial.begin(9600);
 }
 
@@ -53,7 +53,6 @@ State GpsReader::ReadState(State state) {
     {
 		//state.Time = (_gpsTime + ((millis() - _gpsMillis) / 1)) % 86400;
 		state.Time = (_gpsTime + ((millis() - _gpsMillis) / (1000 / state.TimeFactor))) % 86400;
-        //state.Time = (_gpsTime + ((millis() - _gpsMillis) / (1000 / state.TimeFactor))) % 86400;
     }
 
     return state;

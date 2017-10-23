@@ -15,11 +15,14 @@ void LightMutator::TurnOnLight()
 LightMutator::LightMutator(Logger* logger)
 {
     _logger = logger;
-    pinMode(LIGHT_PIN, OUTPUT);
+	pinMode(LIGHT_PIN, OUTPUT);
+	TurnOffLight();
 }
 
 State LightMutator::MutateState(State state) 
 {
+	if(state.Time == -1) return state;
+
     if(state.LightsOnTime < state.Time && state.Time < state.LightsOffTime)
     {
         if(!state.LightsOn)

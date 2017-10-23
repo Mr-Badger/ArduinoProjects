@@ -2,6 +2,7 @@
 #include "GpsReader.h"
 #include "ThermoReader.h"
 #include "ButtonReader.h"
+#include "InternetReader.h"
 #include "StateMutator.h"
 #include "HeaterMutator.h"
 #include "DoorMutator.h"
@@ -18,7 +19,8 @@ class Applictaion
 	StateReader *_stateReaders[3]{
 		new GpsReader(),
 		new ThermoReader(),
-		new ButtonReader()
+		new ButtonReader(),
+		//new InternetReader()
 	};
 
 	StateMutator *_stateMutators[3]{
@@ -69,41 +71,22 @@ class Applictaion
 			_state = _stateReaders[i]->ReadState(_state);
 		}
 
-		if (_state.Time != -1)
-		{
-			_logger.SetTime(_state.Time);
 
-			for (int i = 0; i < sizeof(_stateMutators) / sizeof(int); i++)
-			{
-				_state = _stateMutators[i]->MutateState(_state);
-			}
-		}
-		else
+		_logger.SetTime(_state.Time);
+
+		for (int i = 0; i < sizeof(_stateMutators) / sizeof(int); i++)
 		{
-			//_logger.Debug("Acquiring Time");
+			_state = _stateMutators[i]->MutateState(_state);
 		}
 
-		if(millis() - _lastReport > 600000 / _state.TimeFactor)
+
+		//if(millis() - _lastReport > 600000 / _state.TimeFactor)
+		if(millis() - _lastReport > 6000 / _state.TimeFactor)
 		{
-			Serial.print("Time: ");
-			Serial.print(_state.Time / 3600);
-			Serial.print(":");
-			Serial.print((_state.Time % 3600) / 60);
-			Serial.print(":");
-			Serial.print(_state.Time % 60);
-
-			Serial.print(" Heat: ");
-			Serial.print(_state.Heat);			
-
-			Serial.print(", Lights: ");
-			Serial.print(_state.LightsOn);
-
-			Serial.print(", Heater: ");
-			Serial.print(_state.HeaterOn);
-
-			Serial.print(", Door: ");
-			Serial.println(_state.DoorState);
-
+			char buffer [255];			
+			sprintf(buffer,"Heat: %d, Lights: %d, Heater: %d, Door: %d",_state.Heat,_state.LightsOn,_state.HeaterOn,_state.DoorState);
+			_logger.Debug(buffer);
+			
 			_lastReport = millis();
 		}
 
@@ -117,6 +100,9 @@ void setup()
 {
 	Serial.begin(9600);
 	Serial.println("Setup");
+
+	//InternetReader * ir = new InternetReader();
+
 	app = Applictaion();
 }
 

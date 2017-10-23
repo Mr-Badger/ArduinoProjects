@@ -8,7 +8,7 @@ DoorMutator::DoorMutator(Logger *logger)
 	pinMode(OPEN_PIN, INPUT);
 	pinMode(CLOSE_PIN, INPUT);
 
-	digitalWrite(OPEN_PIN, HIGH);
+	digitalWrite(OPEN_PIN, LOW);
 	digitalWrite(CLOSE_PIN, LOW);
 }
 
@@ -31,26 +31,14 @@ void DoorMutator::StartClosingDoor()
 void DoorMutator::StopDoor()
 {
 	analogWrite(POWER_PIN, 0);
+	digitalWrite(OPEN_PIN, LOW);
+	digitalWrite(CLOSE_PIN, LOW);
 	_logger->Debug("StopDoor");
 }
 
-/*
-	0:Automatic Closed
-	1:Automatic Opening	
-	2:Automatic Closing
-	3:Automatic Open
-
-	10: Manual Closed
-	11: Manual Opening
-	12: Manual Closing
-	13: Manual Open
-*/
-
-
-
 State DoorMutator::MutateState(State state)
 {
-	long doorActivationDuration = 31 * state.TimeFactor;
+	long doorActivationDuration = 26 * state.TimeFactor;
 
 	if(state.DoorActivationTime > state.Time)
 	{
@@ -74,17 +62,18 @@ State DoorMutator::MutateState(State state)
 			state.DoorActivationTime = state.Time;
 			StartClosingDoor();
 		}
-		else if(state.DoorState == MANUAL_OPENING || state.DoorState == MANUAL_CLOSING)
+		else if(state.DoorState == MANUAL_OPENING || state.DoorState == MANUAL_CLOSING || state.DoorState == OPENING || state.DoorState == CLOSING )
 		{
 			//* Manual Opening/Closing -> Manual Open/Closed
-			if(state.DoorState == MANUAL_OPENING) state.DoorState = MANUAL_OPEN; //* Manual Opening -> Manual Open
-			if(state.DoorState == MANUAL_CLOSING) state.DoorState = MANUAL_CLOSED;	//* Manual Closing -> Manual Closed
+			if(state.DoorState == OPENING || state.DoorState == MANUAL_OPENING) state.DoorState = MANUAL_OPEN; //* Manual Opening -> Manual Open
+			if(state.DoorState == CLOSING || state.DoorState == MANUAL_CLOSING) state.DoorState = MANUAL_CLOSED;	//* Manual Closing -> Manual Closed
 			StopDoor();
 		}
 	}
 
 	if(!state.ButtonHold && (state.DoorState == MANUAL_OPENING || state.DoorState == MANUAL_CLOSING))
-	{				
+	{
+		//* Stop the door after the actionvationDuration.
 		if (state.Time - state.DoorActivationTime > doorActivationDuration)
 		{			
 			if(state.DoorState == MANUAL_OPENING) state.DoorState = MANUAL_OPEN; //* Manual Opening -> Manual Open
@@ -120,6 +109,8 @@ State DoorMutator::MutateState(State state)
 			}		
 		}
 	}
+	
+	if(state.Time == -1) return state;
 
 	if(!state.ButtonHold)
 	{
