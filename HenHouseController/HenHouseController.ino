@@ -53,7 +53,7 @@ class Applictaion
 		_state.HeatGoal = 10;		
 
 		_state.LightsOnTime = GetTimeSeconds(16, 0, 0);
-		_state.LightsOffTime = GetTimeSeconds(22, 0, 0);
+		_state.LightsOffTime = GetTimeSeconds(10, 0, 0);
 
 		_state.DoorActivationDuration = 26;
 		_state.DoorOpenTime = GetTimeSeconds(8, 0, 0);
