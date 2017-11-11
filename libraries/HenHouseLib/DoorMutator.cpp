@@ -38,7 +38,7 @@ void DoorMutator::StopDoor()
 
 State DoorMutator::MutateState(State state)
 {
-	long doorActivationDuration = 26 * state.TimeFactor;
+	long doorActivationDuration = state.DoorActivationDuration * state.TimeFactor;
 
 	if(state.DoorActivationTime > state.Time)
 	{

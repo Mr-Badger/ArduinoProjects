@@ -23,22 +23,34 @@ State LightMutator::MutateState(State state)
 {
 	if(state.Time == -1) return state;
 
-    if(state.LightsOnTime < state.Time && state.Time < state.LightsOffTime)
-    {
-        if(!state.LightsOn)
-        {
-            TurnOnLight();
-            state.LightsOn = true;
-        }
-    }
-    else
-    {
-        if(state.LightsOn)
-        {
-            TurnOffLight();
-            state.LightsOn = false;
-        }
-    }
+	bool lightOn = false;
+
+	if(state.LightsOnTime < state.LightsOffTime)
+	{
+		lightOn = state.LightsOnTime < state.Time && state.Time < state.LightsOffTime;
+	}
+	else
+	{
+		lightOn = !(state.LightsOffTime < state.Time && state.Time < state.LightsOnTime);
+	}
+
+	if(lightOn)
+	{
+		if(!state.LightsOn)
+		{
+			TurnOnLight();
+			state.LightsOn = true;
+		}
+	}
+	else
+	{
+		if(state.LightsOn)
+		{
+			TurnOffLight();
+			state.LightsOn = false;
+		}
+	}
+	
 
     return state;
 }

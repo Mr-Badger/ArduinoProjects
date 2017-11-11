@@ -50,16 +50,18 @@ class Applictaion
 		_state.ButtonClicked = false;
 
 		//* goals
-		_state.HeatGoal = 10;
+		_state.HeatGoal = 10;		
 
 		_state.LightsOnTime = GetTimeSeconds(16, 0, 0);
 		_state.LightsOffTime = GetTimeSeconds(22, 0, 0);
 
+		_state.DoorActivationDuration = 26;
 		_state.DoorOpenTime = GetTimeSeconds(8, 0, 0);
 		_state.DoorCloseTime = GetTimeSeconds(21, 30, 0);
 
 		//* Log
 		_state.DoorActivationTime = 0;
+		_state.HeaterChangedTime = 0;
 		_state.TimeFactor = 1;
 	}
 

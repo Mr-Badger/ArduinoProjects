@@ -31,10 +31,15 @@ public:
 
     long DoorCloseTime;
 
-    int HeatGoal;
+	int HeatGoal;
+	
+	int DoorActivationDuration;
 
     //* Logs
 	long DoorActivationTime;
+
+    //* Logs
+	long HeaterChangedTime;	
 	
 	long TimeFactor;
 };

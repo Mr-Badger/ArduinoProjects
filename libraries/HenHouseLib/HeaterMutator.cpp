@@ -20,19 +20,23 @@ HeaterMutator::HeaterMutator(Logger* logger)
 }
 
 State HeaterMutator::MutateState(State state) 
-{    
-    //state.HeatGoal = 26;
-
-    if((state.Heat < state.HeatGoal - 2) && !state.HeaterOn)
-    {
-        TurnOnHeater();
-        state.HeaterOn = true;
-    }
-    else if((state.Heat > state.HeatGoal + 2) && state.HeaterOn)
-    {
-        TurnOffHeater();
-        state.HeaterOn = false;
-    }
+{
+	if(millis() - state.HeaterChangedTime > 10000)
+	{		
+		//* Prevent rapit changes
+		if((state.Heat < state.HeatGoal - 2) && !state.HeaterOn)
+		{
+			TurnOnHeater();
+			state.HeaterOn = true;
+			state.HeaterChangedTime = millis();
+		}
+		else if((state.Heat > state.HeatGoal + 2) && state.HeaterOn)
+		{
+			TurnOffHeater();
+			state.HeaterOn = false;
+			state.HeaterChangedTime = millis();
+		}
+	}
 
     return state;
 }
